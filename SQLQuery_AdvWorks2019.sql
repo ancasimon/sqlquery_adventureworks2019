@@ -1,29 +1,6 @@
 --**Easy:**
 
 --1. Show the first name and the email address of customer with CompanyName 'Bike World'
-select * 
-from Sales.Customer 
-
-select *
-from Sales.Store
-where Name = 'Bike World'
-
-select *
-from Person.BusinessEntity
-
---Anca: first attempt looking through tables!
---select pp.FirstName, pe.EmailAddress
-
---select *
---from Person.Person pp
---	join Person.EmailAddress pe
---	on pp.BusinessEntityID = pe.BusinessEntityID
---		join Sales.Customer sc
---		on sc.PersonID = pe.BusinessEntityID
---			join Sales.Store ss
---			on ss.BusinessEntityID = sc.PersonID
---where ss.Name = 'Bike World'
-
 --NOW let's look through the views:
 select FirstName, EmailAddress, ContactType, Name
 from Sales.vStoreWithContacts
@@ -36,29 +13,60 @@ where City = 'Dallas'
 
 --3. How many items with ListPrice more than $1000 have been sold?
 --ANCA: Here is a count of all the products sold with a unitprice > 1000 - as in "all the product types sold":
-select count(*)
+--select Production.Product.Name, production.Product.ListPrice, count(*) as countOfItems
+select count(*) as countOfItems
 from Sales.SalesOrderDetail
-where UnitPrice > 1000
+	join Production.Product
+	on Sales.SalesOrderDetail.ProductID = Production.Product.ProductID
+where ListPrice > 1000
+--group by Production.Product.ProductID, Production.Product.Name, Production.Product.ListPrice
 --ANCA: and here is a count of all the individual units sold with that unit price condition - as in "counting each individual unit once - NOT just each product type once like I did above":
 select sum(totalNumberOfUnitsSold)
 from (
-select ProductID, sum(orderQty) as totalNumberOfUnitsSold
+select production.product.ProductID, sum(orderQty) as totalNumberOfUnitsSold
 from Sales.SalesOrderDetail
-where UnitPrice > 1000
-group by ProductID
+	join Production.Product
+	on Sales.SalesOrderDetail.ProductID = Production.Product.ProductID
+where ListPrice > 1000
+group by production.product.ProductID
 ) x
 
 --for the details supporting the second query above / aka the query inserted above: here is a list of all the products and how many were sold (based on the orderQty for each sales order item listed):
-select ProductID, sum(orderQty) as totalNumberOfUnitsSold
+select production.product.ProductID, Production.Product.Name, Production.Product.ListPrice, sum(sales.salesorderdetail.orderQty) as totalNumberOfUnitsSold
 from Sales.SalesOrderDetail
-where UnitPrice > 1000
-group by ProductID
+	join Production.Product
+	on Sales.SalesOrderDetail.ProductID = Production.Product.ProductID
+where ListPrice > 1000
+group by production.product.ProductID, production.product.name, production.product.ListPrice
 
 
---4. Give the CompanyName of those customers with orders over $100000. Include the subtotal plus tax plus freight.
-
+--4. Give the CompanyName of those customers with orders over $100,000. Include the subtotal plus tax plus freight.
+--Anca: looking at the primary and foreign key descriptions, I found the relationship between the id stored as businessentityId for the store as being the same as the storeId stored in the customer record
+--Also used HAVING to filter the data
+select Sales.Store.Name as CompanyName, Sales.Customer.CustomerID, SalesOrderID, sum(SubTotal + TaxAmt + Freight) as orderTotal
+from Sales.SalesOrderHeader
+	join Sales.Customer
+	on Sales.SalesOrderHeader.CustomerID = Sales.Customer.CustomerID
+		join Sales.Store
+		on Sales.Customer.StoreID = Sales.Store.BusinessEntityID
+group by SalesOrderID, Sales.Customer.CustomerID, Sales.Store.Name
+having sum(SubTotal + TaxAmt + Freight)  > 100000
 
 --5. Find the number of left racing socks ('Racing Socks, L') ordered by CompanyName 'Riding Cycles'
+select Production.Product.Name as itemName, Sales.Store.Name as companyName, sum(Sales.SalesOrderDetail.OrderQty) as totalCountOfItemsSold
+from Sales.SalesOrderDetail
+	join Sales.SalesOrderHeader
+	on Sales.SalesOrderDetail.SalesOrderID = Sales.SalesOrderHeader.SalesOrderID
+		join Sales.Customer
+		on Sales.SalesOrderHeader.CustomerID = Sales.Customer.CustomerID
+			join Sales.Store
+			on Sales.Customer.StoreID = Sales.Store.BusinessEntityID
+				join Production.Product
+				on Sales.SalesOrderDetail.ProductID = Production.Product.ProductID
+where Sales.Store.Name = 'Riding Cycles'
+AND Production.Product.Name = 'Racing Socks, L'
+group by Production.Product.Name, Sales.Store.Name
+
 
 --**Medium**
 
