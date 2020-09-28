@@ -71,10 +71,175 @@ group by Production.Product.Name, Sales.Store.Name
 --**Medium**
 
 --1. A "Single Item Order" is a customer order where only one item is ordered. Show the SalesOrderID and the UnitPrice for every Single Item Order.
+select *
+from Sales.SalesOrderDetail
+
+--select ssod.salesorderid, ssod.UnitPrice, count(*) as countOfItemsInOrder
+	--row_number() over
+	--(partition by ssod.salesorderid order by ssod.orderqty desc) as rownum
+select ssod.SalesOrderID, count(ssod.SalesOrderID) as count, ssod.unitprice
+from Sales.SalesOrderDetail ssod
+group by ssod.SalesOrderID, ssod.unitprice
+order by ssod.SalesOrderID, count
+--order by countOfItemsInOrder
+
+--also tried:
+select ppod.PurchaseOrderID, ppod.UnitPrice, count(ppod.PurchaseOrderDetailID)
+from Purchasing.PurchaseOrderDetail ppod
+group by ppod.PurchaseOrderID, ppod.UnitPrice
+order by ppod.PurchaseOrderID
+
+--final version:
+select ssod.salesorderid, ssod.UnitPrice, count(*) as countOfItemsInOrder
+from Sales.SalesOrderDetail ssod
+group by ssod.SalesOrderID, ssod.unitprice
+order by countOfItemsInOrder
+
+--ANCA: SHOULD Be this but it seems to be returning orders that have multiple rows ... QUESTION - how should the query look here?
+select *
+from (
+select ssod.salesorderid, ssod.UnitPrice, count(*) as countOfItemsInOrder
+from Sales.SalesOrderDetail ssod
+group by ssod.SalesOrderID, ssod.unitprice
+) tableOfSalesOrdersWithOneItem
+where tableOfSalesOrdersWithOneItem.countOfItemsInOrder = 1
+
+
 --2. Where did the racing socks go? List the product name and the CompanyName for all Customers who ordered ProductModel 'Racing Socks'.
+select pp.Name as ProductName, ss.Name
+from Sales.SalesOrderDetail ssod
+	join Production.Product pp
+	on ssod.ProductID = pp.ProductID
+		join Production.ProductModel ppm
+		on pp.ProductModelID = ppm.ProductModelID
+			join Sales.SalesOrderHeader ssoh
+			on ssod.SalesOrderID = ssoh.SalesOrderID
+				join Sales.Customer sc
+				on ssoh.CustomerID = sc.CustomerID
+					join Sales.Store ss
+					on sc.StoreID = ss.BusinessEntityID
+where ppm.Name = 'Racing Socks'
+group by sc.CustomerID, ss.Name, pp.Name
+
+
 --3. Show the product description for culture 'fr' for product with ProductID 736.
---4. Use the SubTotal value in SaleOrderHeader to list orders from the largest to the smallest. For each order show the CompanyName and the SubTotal and the total weight of the order.
+select *
+from Production.Product pp
+where pp.ProductID = 736
+
+select *
+from Production.Culture
+
+select *
+from Production.ProductDescription
+
+--using the view!!
+select *
+from Production.vProductAndDescription pvpad
+where pvpad.ProductID = 736 AND pvpad.CultureID = 'fr'
+
+--4. Use the SubTotal value in SaleOrderHeader to list orders from the largest to the smallest. 
+--For each order show the CompanyName and the SubTotal and the total weight of the order.
+select * 
+from Sales.SalesOrderDetail
+
+--get company name and subtotal for each order:
+select ss.Name as CompanyName, ssoh.SalesOrderID, ssoh.CustomerID, ssoh.SubTotal
+from Sales.SalesOrderHeader ssoh
+	join Sales.Customer sc
+	on ssoh.CustomerID = sc.CustomerID
+		join sales.Store ss
+		on sc.StoreID = ss.BusinessEntityID
+order by ssoh.SubTotal desc
+
+--get weight for each product in each order:
+select ssoh.SalesOrderID, pp.name as ProductName, ssod.OrderQty, pp.Weight, (
+	case when pp.weight is not null then (ssod.OrderQty * pp.Weight)
+	else 0
+	end) as weightPerProductType
+from Sales.SalesOrderHeader ssoh
+	join Sales.SalesOrderDetail ssod
+	on ssoh.SalesOrderID = ssod.SalesOrderID
+		join Production.Product pp
+		on ssod.ProductID = pp.ProductID
+group by ssoh.SalesOrderID, pp.name, ssod.OrderQty, pp.Weight,
+(
+	case when pp.weight is not null then (ssod.OrderQty * pp.Weight)
+	else 0
+	end)
+order by ssoh.SalesOrderID
+
+--get weight for entire order:
+select tableWithProductWeights.SalesOrderID, sum(tableWithProductWeights.weightPerProductType) as totalOrderWeight
+from (
+select ssoh.SalesOrderID, pp.name as ProductName, ssod.OrderQty, pp.Weight, (
+	case when pp.weight is not null then (ssod.OrderQty * pp.Weight)
+	else 0
+	end) as weightPerProductType
+from Sales.SalesOrderHeader ssoh
+	join Sales.SalesOrderDetail ssod
+	on ssoh.SalesOrderID = ssod.SalesOrderID
+		join Production.Product pp
+		on ssod.ProductID = pp.ProductID
+group by ssoh.SalesOrderID, pp.name, ssod.OrderQty, pp.Weight,
+(
+	case when pp.weight is not null then (ssod.OrderQty * pp.Weight)
+	else 0
+	end)
+--order by ssoh.SalesOrderID
+) tableWithProductWeights
+group by tableWithProductWeights.SalesOrderID
+order by tableWithProductWeights.SalesOrderID
+
+--join customer data and order weight data - FINAL ANSWER:
+select ss.Name as CompanyName, ssoh.SalesOrderID, ssoh.CustomerID, ssoh.SubTotal, tableWithOrderWeights.totalOrderWeight
+from Sales.SalesOrderHeader ssoh
+	join Sales.Customer sc
+	on ssoh.CustomerID = sc.CustomerID
+		join sales.Store ss
+		on sc.StoreID = ss.BusinessEntityID
+		join
+		(
+		select tableWithProductWeights.SalesOrderID, sum(tableWithProductWeights.weightPerProductType) as totalOrderWeight
+from (
+select ssoh.SalesOrderID, pp.name as ProductName, ssod.OrderQty, (
+	case when pp.weight is not null then (ssod.OrderQty * pp.Weight)
+	else 0
+	end) as weightPerProductType
+from Sales.SalesOrderHeader ssoh
+	join Sales.SalesOrderDetail ssod
+	on ssoh.SalesOrderID = ssod.SalesOrderID
+		join Production.Product pp
+		on ssod.ProductID = pp.ProductID
+group by ssoh.SalesOrderID, pp.name, ssod.OrderQty,
+(
+	case when pp.weight is not null then (ssod.OrderQty * pp.Weight)
+	else 0
+	end)
+--order by ssoh.SalesOrderID
+) tableWithProductWeights
+group by tableWithProductWeights.SalesOrderID
+--order by tableWithProductWeights.SalesOrderID
+		) tableWithOrderWeights
+		on ssoh.SalesOrderID = tableWithOrderWeights.SalesOrderID
+order by ssoh.SubTotal desc
+--order by ssoh.SalesOrderID
+
+
 --5. How many products in ProductCategory 'Cranksets' have been sold to an address in 'London'?
+select *
+from Production.ProductCategory
+--Anca: I don't see a prod categ for cranksets ...
+
+select *
+from Production.ProductModel ppm
+
+select *
+from Production.ProductInventory
+
+select *
+from Production.vProductAndDescription
+
 
 --**Hard**
 
@@ -82,7 +247,129 @@ group by Production.Product.Name, Sales.Store.Name
 --    1.  From the SalesOrderHeader
 --    2. Sum of OrderQty*UnitPrice
 --    3. Sum of OrderQty*ListPrice
---2. Show how many orders are in the following ranges (in $):
+
+
+--include discounts??
+select *
+from Sales.SalesOrderDetail
+where UnitPriceDiscount != 0
+
+--get subtotal from sales order header:
+select ssod.SalesOrderID, ssoh.SubTotal as SubTotalFromHeader
+--select *
+from Sales.SalesOrderDetail ssod
+	join Sales.SalesOrderHeader ssoh
+	on ssod.SalesOrderID = ssoh.SalesOrderID
+group by ssod.SalesOrderID, ssoh.SubTotal
+order by ssod.SalesOrderID
+
+	--get subtotal as orderqty * unit price:
+select tableWithSubTotalBasedOnUnitPrice.SalesOrderID, sum(tableWithSubTotalBasedOnUnitPrice.SubTotalBasedOnUnitPrice) as OrderSubTotalBasedOnUnitPrice
+from 
+(
+select ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice) as SubTotalBasedOnUnitPrice
+from Sales.SalesOrderDetail ssod
+	join Sales.SalesOrderHeader ssoh
+	on ssod.SalesOrderID = ssoh.SalesOrderID
+group by ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice)
+--order by ssod.SalesOrderID
+) tableWithSubtotalBasedOnUnitPrice
+group by tableWithSubTotalBasedOnUnitPrice.SalesOrderID
+order by tableWithSubTotalBasedOnUnitPrice.SalesOrderID
+
+--get subtotal based on list price:
+select tableWithProductSubTotalBasedOnListPrice.SalesOrderID, sum(tableWithProductSubTotalBasedOnListPrice.ProductSubTotalBasedOnListPrice) as SubTotalBasedOnListPrice
+from (
+select ssod.SalesOrderID, ssod.OrderQty, ssod.ProductID, ssod.UnitPrice, pp.ListPrice, (ssod.OrderQty * pp.ListPrice) as ProductSubTotalBasedOnListPrice
+--select *
+from Sales.SalesOrderDetail ssod
+	join Production.Product pp
+	on ssod.ProductID = pp.ProductID
+) tableWithProductSubTotalBasedOnListPrice
+group by tableWithProductSubTotalBasedOnListPrice.SalesOrderID
+
+--join all the tables: FINAL ANSWER for #1 above:
+select ssod.SalesOrderID, tableWithOrderSubTotalFromHeader.SubTotalFromHeader, tableWithOrderSubTotalBasedOnUnitPrice.OrderSubTotalBasedOnUnitPrice, tableWithOrderSubTotalBasedOnListPrice.SubTotalBasedOnListPrice
+from Sales.SalesOrderDetail ssod
+join (
+select ssod.SalesOrderID, ssoh.SubTotal as SubTotalFromHeader
+from Sales.SalesOrderDetail ssod
+	join Sales.SalesOrderHeader ssoh
+	on ssod.SalesOrderID = ssoh.SalesOrderID
+group by ssod.SalesOrderID, ssoh.SubTotal
+) tableWithOrderSubTotalFromHeader
+on ssod.SalesOrderID = tableWithOrderSubTotalFromHeader.SalesOrderID
+	join (
+	select tableWithProductSubTotalBasedOnListPrice.SalesOrderID, sum(tableWithProductSubTotalBasedOnListPrice.ProductSubTotalBasedOnListPrice) as SubTotalBasedOnListPrice
+from (
+select ssod.SalesOrderID, ssod.OrderQty, ssod.ProductID, ssod.UnitPrice, pp.ListPrice, (ssod.OrderQty * pp.ListPrice) as ProductSubTotalBasedOnListPrice
+--select *
+from Sales.SalesOrderDetail ssod
+	join Production.Product pp
+	on ssod.ProductID = pp.ProductID
+) tableWithProductSubTotalBasedOnListPrice
+group by tableWithProductSubTotalBasedOnListPrice.SalesOrderID
+) tableWithOrderSubTotalBasedOnListPrice
+	on ssod.SalesOrderID = tableWithOrderSubTotalBasedOnListPrice.SalesOrderID
+	join (
+	select tableWithSubTotalBasedOnUnitPrice.SalesOrderID, sum(tableWithSubTotalBasedOnUnitPrice.SubTotalBasedOnUnitPrice) as OrderSubTotalBasedOnUnitPrice
+from 
+(
+select ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice) as SubTotalBasedOnUnitPrice
+from Sales.SalesOrderDetail ssod
+	join Sales.SalesOrderHeader ssoh
+	on ssod.SalesOrderID = ssoh.SalesOrderID
+group by ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice)
+--order by ssod.SalesOrderID
+) tableWithSubtotalBasedOnUnitPrice
+group by tableWithSubTotalBasedOnUnitPrice.SalesOrderID
+--order by tableWithSubTotalBasedOnUnitPrice.SalesOrderID
+	) tableWithOrderSubTotalBasedOnUnitPrice
+	on ssod.SalesOrderID = tableWithOrderSubTotalBasedOnUnitPrice.SalesOrderID
+group by ssod.SalesOrderID, tableWithOrderSubTotalFromHeader.SubTotalFromHeader, tableWithOrderSubTotalBasedOnUnitPrice.OrderSubTotalBasedOnUnitPrice, tableWithOrderSubTotalBasedOnListPrice.SubTotalBasedOnListPrice
+order by ssod.SalesOrderID
+
+--trimmed down:
+select tableWithOrderSubTotalFromHeader.SalesOrderID, tableWithOrderSubTotalFromHeader.SubTotalFromHeader, tableWithOrderSubTotalBasedOnUnitPrice.OrderSubTotalBasedOnUnitPrice, tableWithOrderSubTotalBasedOnListPrice.SubTotalBasedOnListPrice
+from (
+select ssod.SalesOrderID, ssoh.SubTotal as SubTotalFromHeader
+from Sales.SalesOrderDetail ssod
+	join Sales.SalesOrderHeader ssoh
+	on ssod.SalesOrderID = ssoh.SalesOrderID
+group by ssod.SalesOrderID, ssoh.SubTotal
+) tableWithOrderSubTotalFromHeader
+	join (
+	select tableWithProductSubTotalBasedOnListPrice.SalesOrderID, sum(tableWithProductSubTotalBasedOnListPrice.ProductSubTotalBasedOnListPrice) as SubTotalBasedOnListPrice
+from (
+select ssod.SalesOrderID, ssod.OrderQty, ssod.ProductID, ssod.UnitPrice, pp.ListPrice, (ssod.OrderQty * pp.ListPrice) as ProductSubTotalBasedOnListPrice
+from Sales.SalesOrderDetail ssod
+	join Production.Product pp
+	on ssod.ProductID = pp.ProductID
+) tableWithProductSubTotalBasedOnListPrice
+group by tableWithProductSubTotalBasedOnListPrice.SalesOrderID
+) tableWithOrderSubTotalBasedOnListPrice
+	on tableWithOrderSubTotalFromHeader.SalesOrderID = tableWithOrderSubTotalBasedOnListPrice.SalesOrderID
+	join (
+	select tableWithSubTotalBasedOnUnitPrice.SalesOrderID, sum(tableWithSubTotalBasedOnUnitPrice.SubTotalBasedOnUnitPrice) as OrderSubTotalBasedOnUnitPrice
+from 
+(
+select ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice) as SubTotalBasedOnUnitPrice
+from Sales.SalesOrderDetail ssod
+	join Sales.SalesOrderHeader ssoh
+	on ssod.SalesOrderID = ssoh.SalesOrderID
+group by ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice)
+--order by ssod.SalesOrderID
+) tableWithSubtotalBasedOnUnitPrice
+group by tableWithSubTotalBasedOnUnitPrice.SalesOrderID
+--order by tableWithSubTotalBasedOnUnitPrice.SalesOrderID
+	) tableWithOrderSubTotalBasedOnUnitPrice
+	on tableWithOrderSubTotalFromHeader.SalesOrderID = tableWithOrderSubTotalBasedOnUnitPrice.SalesOrderID
+group by tableWithOrderSubTotalFromHeader.SalesOrderID, tableWithOrderSubTotalFromHeader.SubTotalFromHeader, tableWithOrderSubTotalBasedOnUnitPrice.OrderSubTotalBasedOnUnitPrice, tableWithOrderSubTotalBasedOnListPrice.SubTotalBasedOnListPrice
+order by tableWithOrderSubTotalFromHeader.SalesOrderID
+
+
+
+--2. Show how many orders are in the following ranges (in $): --ANCA: Based on total due?? Or just subtotal? QUESTION
 
 --```
 --    RANGE      Num Orders      Total Value
@@ -92,3 +379,21 @@ group by Production.Product.Name, Sales.Store.Name
 --10000-
 
 --```
+
+select *
+from Sales.SalesOrderHeader
+
+select tableWithRanges.range as Range, count(*) as [Num Orders], sum(tableWithRanges.subtotal) as [Total Value]
+from (
+select case
+	when ssoh.SubTotal between 0 and 99 then '        0-    99'
+	when ssoh.SubTotal between 100 and 999 then '    100-  999'
+	when ssoh.SubTotal between 1000 and 9999 then '  1000-9999'
+	else '10000- '
+	end as range,
+	ssoh.subtotal
+from Sales.SalesOrderHeader ssoh) tableWithRanges
+group by tableWithRanges.range
+order by tableWithRanges.range
+
+
