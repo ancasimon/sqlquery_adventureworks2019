@@ -93,16 +93,25 @@ order by ppod.PurchaseOrderID
 select ssod.salesorderid, ssod.UnitPrice, count(*) as countOfItemsInOrder
 from Sales.SalesOrderDetail ssod
 group by ssod.SalesOrderID, ssod.unitprice
-order by countOfItemsInOrder
+--order by countOfItemsInOrder
+order by ssod.SalesOrderID
 
---ANCA: SHOULD Be this but it seems to be returning orders that have multiple rows ... QUESTION - how should the query look here?
+--option without unitprices!!! That's why I was seeing more rows for the same order ID!!:
+select ssod.salesorderid, count(*) as countOfItemsInOrder
+from Sales.SalesOrderDetail ssod
+group by ssod.SalesOrderID
+--order by countOfItemsInOrder
+order by ssod.SalesOrderID
+
+--ANCA: FINAL ANSWER:
 select *
 from (
-select ssod.salesorderid, ssod.UnitPrice, count(*) as countOfItemsInOrder
+select ssod.salesorderid, count(*) as countOfItemsInOrder
 from Sales.SalesOrderDetail ssod
-group by ssod.SalesOrderID, ssod.unitprice
+group by ssod.SalesOrderID
 ) tableOfSalesOrdersWithOneItem
 where tableOfSalesOrdersWithOneItem.countOfItemsInOrder = 1
+order by tableOfSalesOrdersWithOneItem.salesorderid
 
 
 --2. Where did the racing socks go? List the product name and the CompanyName for all Customers who ordered ProductModel 'Racing Socks'.
@@ -291,81 +300,78 @@ group by tableWithProductSubTotalBasedOnListPrice.SalesOrderID
 --join all the tables: FINAL ANSWER for #1 above:
 select ssod.SalesOrderID, tableWithOrderSubTotalFromHeader.SubTotalFromHeader, tableWithOrderSubTotalBasedOnUnitPrice.OrderSubTotalBasedOnUnitPrice, tableWithOrderSubTotalBasedOnListPrice.SubTotalBasedOnListPrice
 from Sales.SalesOrderDetail ssod
-join (
-select ssod.SalesOrderID, ssoh.SubTotal as SubTotalFromHeader
-from Sales.SalesOrderDetail ssod
-	join Sales.SalesOrderHeader ssoh
-	on ssod.SalesOrderID = ssoh.SalesOrderID
-group by ssod.SalesOrderID, ssoh.SubTotal
-) tableWithOrderSubTotalFromHeader
-on ssod.SalesOrderID = tableWithOrderSubTotalFromHeader.SalesOrderID
 	join (
-	select tableWithProductSubTotalBasedOnListPrice.SalesOrderID, sum(tableWithProductSubTotalBasedOnListPrice.ProductSubTotalBasedOnListPrice) as SubTotalBasedOnListPrice
-from (
-select ssod.SalesOrderID, ssod.OrderQty, ssod.ProductID, ssod.UnitPrice, pp.ListPrice, (ssod.OrderQty * pp.ListPrice) as ProductSubTotalBasedOnListPrice
---select *
-from Sales.SalesOrderDetail ssod
-	join Production.Product pp
-	on ssod.ProductID = pp.ProductID
-) tableWithProductSubTotalBasedOnListPrice
-group by tableWithProductSubTotalBasedOnListPrice.SalesOrderID
-) tableWithOrderSubTotalBasedOnListPrice
-	on ssod.SalesOrderID = tableWithOrderSubTotalBasedOnListPrice.SalesOrderID
-	join (
-	select tableWithSubTotalBasedOnUnitPrice.SalesOrderID, sum(tableWithSubTotalBasedOnUnitPrice.SubTotalBasedOnUnitPrice) as OrderSubTotalBasedOnUnitPrice
-from 
-(
-select ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice) as SubTotalBasedOnUnitPrice
-from Sales.SalesOrderDetail ssod
-	join Sales.SalesOrderHeader ssoh
-	on ssod.SalesOrderID = ssoh.SalesOrderID
-group by ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice)
+	select ssod.SalesOrderID, ssoh.SubTotal as SubTotalFromHeader
+	from Sales.SalesOrderDetail ssod
+		join Sales.SalesOrderHeader ssoh
+			on ssod.SalesOrderID = ssoh.SalesOrderID
+	group by ssod.SalesOrderID, ssoh.SubTotal
+	) tableWithOrderSubTotalFromHeader
+		on ssod.SalesOrderID = tableWithOrderSubTotalFromHeader.SalesOrderID
+			join (
+			select tableWithProductSubTotalBasedOnListPrice.SalesOrderID, sum(tableWithProductSubTotalBasedOnListPrice.ProductSubTotalBasedOnListPrice) as SubTotalBasedOnListPrice
+			from (
+				select ssod.SalesOrderID, ssod.OrderQty, ssod.ProductID, ssod.UnitPrice, pp.ListPrice, (ssod.OrderQty * pp.ListPrice) as ProductSubTotalBasedOnListPrice
+				from Sales.SalesOrderDetail ssod
+					join Production.Product pp
+					on ssod.ProductID = pp.ProductID
+				) tableWithProductSubTotalBasedOnListPrice
+			group by tableWithProductSubTotalBasedOnListPrice.SalesOrderID
+			) tableWithOrderSubTotalBasedOnListPrice
+				on ssod.SalesOrderID = tableWithOrderSubTotalBasedOnListPrice.SalesOrderID
+					join (
+					select tableWithSubTotalBasedOnUnitPrice.SalesOrderID, sum(tableWithSubTotalBasedOnUnitPrice.SubTotalBasedOnUnitPrice) as OrderSubTotalBasedOnUnitPrice
+					from (
+					select ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice) as SubTotalBasedOnUnitPrice
+					from Sales.SalesOrderDetail ssod
+						join Sales.SalesOrderHeader ssoh
+							on ssod.SalesOrderID = ssoh.SalesOrderID
+					group by ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice)
 --order by ssod.SalesOrderID
-) tableWithSubtotalBasedOnUnitPrice
-group by tableWithSubTotalBasedOnUnitPrice.SalesOrderID
+						) tableWithSubtotalBasedOnUnitPrice
+					group by tableWithSubTotalBasedOnUnitPrice.SalesOrderID
 --order by tableWithSubTotalBasedOnUnitPrice.SalesOrderID
-	) tableWithOrderSubTotalBasedOnUnitPrice
-	on ssod.SalesOrderID = tableWithOrderSubTotalBasedOnUnitPrice.SalesOrderID
-group by ssod.SalesOrderID, tableWithOrderSubTotalFromHeader.SubTotalFromHeader, tableWithOrderSubTotalBasedOnUnitPrice.OrderSubTotalBasedOnUnitPrice, tableWithOrderSubTotalBasedOnListPrice.SubTotalBasedOnListPrice
-order by ssod.SalesOrderID
+					) tableWithOrderSubTotalBasedOnUnitPrice
+						on ssod.SalesOrderID = tableWithOrderSubTotalBasedOnUnitPrice.SalesOrderID
+					group by ssod.SalesOrderID, tableWithOrderSubTotalFromHeader.SubTotalFromHeader, tableWithOrderSubTotalBasedOnUnitPrice.OrderSubTotalBasedOnUnitPrice, tableWithOrderSubTotalBasedOnListPrice.SubTotalBasedOnListPrice
+					order by ssod.SalesOrderID
 
 --trimmed down:
 select tableWithOrderSubTotalFromHeader.SalesOrderID, tableWithOrderSubTotalFromHeader.SubTotalFromHeader, tableWithOrderSubTotalBasedOnUnitPrice.OrderSubTotalBasedOnUnitPrice, tableWithOrderSubTotalBasedOnListPrice.SubTotalBasedOnListPrice
 from (
-select ssod.SalesOrderID, ssoh.SubTotal as SubTotalFromHeader
-from Sales.SalesOrderDetail ssod
-	join Sales.SalesOrderHeader ssoh
-	on ssod.SalesOrderID = ssoh.SalesOrderID
-group by ssod.SalesOrderID, ssoh.SubTotal
-) tableWithOrderSubTotalFromHeader
-	join (
-	select tableWithProductSubTotalBasedOnListPrice.SalesOrderID, sum(tableWithProductSubTotalBasedOnListPrice.ProductSubTotalBasedOnListPrice) as SubTotalBasedOnListPrice
-from (
-select ssod.SalesOrderID, ssod.OrderQty, ssod.ProductID, ssod.UnitPrice, pp.ListPrice, (ssod.OrderQty * pp.ListPrice) as ProductSubTotalBasedOnListPrice
-from Sales.SalesOrderDetail ssod
-	join Production.Product pp
-	on ssod.ProductID = pp.ProductID
-) tableWithProductSubTotalBasedOnListPrice
-group by tableWithProductSubTotalBasedOnListPrice.SalesOrderID
-) tableWithOrderSubTotalBasedOnListPrice
-	on tableWithOrderSubTotalFromHeader.SalesOrderID = tableWithOrderSubTotalBasedOnListPrice.SalesOrderID
-	join (
-	select tableWithSubTotalBasedOnUnitPrice.SalesOrderID, sum(tableWithSubTotalBasedOnUnitPrice.SubTotalBasedOnUnitPrice) as OrderSubTotalBasedOnUnitPrice
-from 
-(
-select ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice) as SubTotalBasedOnUnitPrice
-from Sales.SalesOrderDetail ssod
-	join Sales.SalesOrderHeader ssoh
-	on ssod.SalesOrderID = ssoh.SalesOrderID
-group by ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice)
+	select ssod.SalesOrderID, ssoh.SubTotal as SubTotalFromHeader
+	from Sales.SalesOrderDetail ssod
+		join Sales.SalesOrderHeader ssoh
+			on ssod.SalesOrderID = ssoh.SalesOrderID
+	group by ssod.SalesOrderID, ssoh.SubTotal
+	) tableWithOrderSubTotalFromHeader
+		join (
+		select tableWithProductSubTotalBasedOnListPrice.SalesOrderID, sum(tableWithProductSubTotalBasedOnListPrice.ProductSubTotalBasedOnListPrice) as SubTotalBasedOnListPrice
+		from (
+			select ssod.SalesOrderID, ssod.OrderQty, ssod.ProductID, ssod.UnitPrice, pp.ListPrice, (ssod.OrderQty * pp.ListPrice) as ProductSubTotalBasedOnListPrice
+			from Sales.SalesOrderDetail ssod
+				join Production.Product pp
+					on ssod.ProductID = pp.ProductID
+			) tableWithProductSubTotalBasedOnListPrice
+		group by tableWithProductSubTotalBasedOnListPrice.SalesOrderID
+		) tableWithOrderSubTotalBasedOnListPrice
+			on tableWithOrderSubTotalFromHeader.SalesOrderID = tableWithOrderSubTotalBasedOnListPrice.SalesOrderID
+				join (
+				select tableWithSubTotalBasedOnUnitPrice.SalesOrderID, sum(tableWithSubTotalBasedOnUnitPrice.SubTotalBasedOnUnitPrice) as OrderSubTotalBasedOnUnitPrice
+					from (
+					select ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice) as SubTotalBasedOnUnitPrice
+						from Sales.SalesOrderDetail ssod
+							join Sales.SalesOrderHeader ssoh
+							on ssod.SalesOrderID = ssoh.SalesOrderID
+						group by ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice)
 --order by ssod.SalesOrderID
-) tableWithSubtotalBasedOnUnitPrice
-group by tableWithSubTotalBasedOnUnitPrice.SalesOrderID
+					) tableWithSubtotalBasedOnUnitPrice
+				group by tableWithSubTotalBasedOnUnitPrice.SalesOrderID
 --order by tableWithSubTotalBasedOnUnitPrice.SalesOrderID
-	) tableWithOrderSubTotalBasedOnUnitPrice
-	on tableWithOrderSubTotalFromHeader.SalesOrderID = tableWithOrderSubTotalBasedOnUnitPrice.SalesOrderID
-group by tableWithOrderSubTotalFromHeader.SalesOrderID, tableWithOrderSubTotalFromHeader.SubTotalFromHeader, tableWithOrderSubTotalBasedOnUnitPrice.OrderSubTotalBasedOnUnitPrice, tableWithOrderSubTotalBasedOnListPrice.SubTotalBasedOnListPrice
-order by tableWithOrderSubTotalFromHeader.SalesOrderID
+				) tableWithOrderSubTotalBasedOnUnitPrice
+					on tableWithOrderSubTotalFromHeader.SalesOrderID = tableWithOrderSubTotalBasedOnUnitPrice.SalesOrderID
+				group by tableWithOrderSubTotalFromHeader.SalesOrderID, tableWithOrderSubTotalFromHeader.SubTotalFromHeader, tableWithOrderSubTotalBasedOnUnitPrice.OrderSubTotalBasedOnUnitPrice, tableWithOrderSubTotalBasedOnListPrice.SubTotalBasedOnListPrice
+				order by tableWithOrderSubTotalFromHeader.SalesOrderID
 
 
 
