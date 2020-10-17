@@ -23,13 +23,13 @@ where ListPrice > 1000
 --ANCA: and here is a count of all the individual units sold with that unit price condition - as in "counting each individual unit once - NOT just each product type once like I did above":
 select sum(totalNumberOfUnitsSold)
 from (
-select production.product.ProductID, sum(orderQty) as totalNumberOfUnitsSold
-from Sales.SalesOrderDetail
-	join Production.Product
-	on Sales.SalesOrderDetail.ProductID = Production.Product.ProductID
-where ListPrice > 1000
-group by production.product.ProductID
-) x
+	select production.product.ProductID, sum(orderQty) as totalNumberOfUnitsSold
+	from Sales.SalesOrderDetail
+		join Production.Product
+		on Sales.SalesOrderDetail.ProductID = Production.Product.ProductID
+	where ListPrice > 1000
+	group by production.product.ProductID
+	) x
 
 --for the details supporting the second query above / aka the query inserted above: here is a list of all the products and how many were sold (based on the orderQty for each sales order item listed):
 select production.product.ProductID, Production.Product.Name, Production.Product.ListPrice, sum(sales.salesorderdetail.orderQty) as totalNumberOfUnitsSold
@@ -93,10 +93,10 @@ order by ssod.SalesOrderID
 --ANCA: FINAL ANSWER:
 select *
 from (
-select ssod.salesorderid, count(*) as countOfItemsInOrder
-from Sales.SalesOrderDetail ssod
-group by ssod.SalesOrderID
-) tableOfSalesOrdersWithOneItem
+	select ssod.salesorderid, count(*) as countOfItemsInOrder
+	from Sales.SalesOrderDetail ssod
+	group by ssod.SalesOrderID
+	) tableOfSalesOrdersWithOneItem
 where tableOfSalesOrdersWithOneItem.countOfItemsInOrder = 1
 order by tableOfSalesOrdersWithOneItem.salesorderid
 
@@ -159,7 +159,7 @@ from Sales.SalesOrderHeader ssoh
 		join Production.Product pp
 		on ssod.ProductID = pp.ProductID
 group by ssoh.SalesOrderID, pp.name, ssod.OrderQty, pp.Weight,
-(
+	(
 	case when pp.weight is not null then (ssod.OrderQty * pp.Weight)
 	else 0
 	end)
@@ -168,22 +168,22 @@ order by ssoh.SalesOrderID
 --get weight for entire order:
 select tableWithProductWeights.SalesOrderID, sum(tableWithProductWeights.weightPerProductType) as totalOrderWeight
 from (
-select ssoh.SalesOrderID, pp.name as ProductName, ssod.OrderQty, pp.Weight, (
-	case when pp.weight is not null then (ssod.OrderQty * pp.Weight)
-	else 0
-	end) as weightPerProductType
-from Sales.SalesOrderHeader ssoh
-	join Sales.SalesOrderDetail ssod
-	on ssoh.SalesOrderID = ssod.SalesOrderID
-		join Production.Product pp
-		on ssod.ProductID = pp.ProductID
-group by ssoh.SalesOrderID, pp.name, ssod.OrderQty, pp.Weight,
-(
-	case when pp.weight is not null then (ssod.OrderQty * pp.Weight)
-	else 0
-	end)
+	select ssoh.SalesOrderID, pp.name as ProductName, ssod.OrderQty, pp.Weight, (
+		case when pp.weight is not null then (ssod.OrderQty * pp.Weight)
+		else 0
+		end) as weightPerProductType
+	from Sales.SalesOrderHeader ssoh
+		join Sales.SalesOrderDetail ssod
+		on ssoh.SalesOrderID = ssod.SalesOrderID
+			join Production.Product pp
+			on ssod.ProductID = pp.ProductID
+	group by ssoh.SalesOrderID, pp.name, ssod.OrderQty, pp.Weight,
+		(
+		case when pp.weight is not null then (ssod.OrderQty * pp.Weight)
+		else 0
+		end)
 --order by ssoh.SalesOrderID
-) tableWithProductWeights
+		) tableWithProductWeights
 group by tableWithProductWeights.SalesOrderID
 order by tableWithProductWeights.SalesOrderID
 
