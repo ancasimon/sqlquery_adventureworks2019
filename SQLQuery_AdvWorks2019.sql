@@ -1,7 +1,7 @@
 --**Easy:**
 
 --1. Show the first name and the email address of customer with CompanyName 'Bike World'
---NOW let's look through the views:
+--Anca: let's look through the views:
 select FirstName, EmailAddress, ContactType, Name
 from Sales.vStoreWithContacts
 where Name= 'Bike World'
@@ -83,19 +83,6 @@ group by ssod.SalesOrderID, ssod.unitprice
 order by ssod.SalesOrderID, count
 --order by countOfItemsInOrder
 
---also tried:
-select ppod.PurchaseOrderID, ppod.UnitPrice, count(ppod.PurchaseOrderDetailID)
-from Purchasing.PurchaseOrderDetail ppod
-group by ppod.PurchaseOrderID, ppod.UnitPrice
-order by ppod.PurchaseOrderID
-
---final version:
-select ssod.salesorderid, ssod.UnitPrice, count(*) as countOfItemsInOrder
-from Sales.SalesOrderDetail ssod
-group by ssod.SalesOrderID, ssod.unitprice
---order by countOfItemsInOrder
-order by ssod.SalesOrderID
-
 --option without unitprices!!! That's why I was seeing more rows for the same order ID!!:
 select ssod.salesorderid, count(*) as countOfItemsInOrder
 from Sales.SalesOrderDetail ssod
@@ -142,7 +129,7 @@ from Production.Culture
 select *
 from Production.ProductDescription
 
---using the view!!
+--Anca: using the view!!
 select *
 from Production.vProductAndDescription pvpad
 where pvpad.ProductID = 736 AND pvpad.CultureID = 'fr'
@@ -210,27 +197,27 @@ from Sales.SalesOrderHeader ssoh
 		join
 		(
 		select tableWithProductWeights.SalesOrderID, sum(tableWithProductWeights.weightPerProductType) as totalOrderWeight
-from (
-select ssoh.SalesOrderID, pp.name as ProductName, ssod.OrderQty, (
-	case when pp.weight is not null then (ssod.OrderQty * pp.Weight)
-	else 0
-	end) as weightPerProductType
-from Sales.SalesOrderHeader ssoh
-	join Sales.SalesOrderDetail ssod
-	on ssoh.SalesOrderID = ssod.SalesOrderID
-		join Production.Product pp
-		on ssod.ProductID = pp.ProductID
-group by ssoh.SalesOrderID, pp.name, ssod.OrderQty,
-(
-	case when pp.weight is not null then (ssod.OrderQty * pp.Weight)
-	else 0
-	end)
+			from (
+				select ssoh.SalesOrderID, pp.name as ProductName, ssod.OrderQty, (
+				case when pp.weight is not null then (ssod.OrderQty * pp.Weight)
+				else 0
+				end) as weightPerProductType
+				from Sales.SalesOrderHeader ssoh
+					join Sales.SalesOrderDetail ssod
+					on ssoh.SalesOrderID = ssod.SalesOrderID
+						join Production.Product pp
+						on ssod.ProductID = pp.ProductID
+						group by ssoh.SalesOrderID, pp.name, ssod.OrderQty,
+						(
+						case when pp.weight is not null then (ssod.OrderQty * pp.Weight)
+						else 0
+						end)
 --order by ssoh.SalesOrderID
-) tableWithProductWeights
-group by tableWithProductWeights.SalesOrderID
+				) tableWithProductWeights
+				group by tableWithProductWeights.SalesOrderID
 --order by tableWithProductWeights.SalesOrderID
-		) tableWithOrderWeights
-		on ssoh.SalesOrderID = tableWithOrderWeights.SalesOrderID
+			) tableWithOrderWeights
+			on ssoh.SalesOrderID = tableWithOrderWeights.SalesOrderID
 order by ssoh.SubTotal desc
 --order by ssoh.SalesOrderID
 
@@ -272,29 +259,29 @@ from Sales.SalesOrderDetail ssod
 group by ssod.SalesOrderID, ssoh.SubTotal
 order by ssod.SalesOrderID
 
-	--get subtotal as orderqty * unit price:
+--get subtotal as orderqty * unit price:
 select tableWithSubTotalBasedOnUnitPrice.SalesOrderID, sum(tableWithSubTotalBasedOnUnitPrice.SubTotalBasedOnUnitPrice) as OrderSubTotalBasedOnUnitPrice
 from 
-(
-select ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice) as SubTotalBasedOnUnitPrice
-from Sales.SalesOrderDetail ssod
-	join Sales.SalesOrderHeader ssoh
-	on ssod.SalesOrderID = ssoh.SalesOrderID
-group by ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice)
---order by ssod.SalesOrderID
-) tableWithSubtotalBasedOnUnitPrice
+	(
+	select ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice) as SubTotalBasedOnUnitPrice
+	from Sales.SalesOrderDetail ssod
+		join Sales.SalesOrderHeader ssoh
+		on ssod.SalesOrderID = ssoh.SalesOrderID
+	group by ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice)
+	--order by ssod.SalesOrderID
+	) tableWithSubtotalBasedOnUnitPrice
 group by tableWithSubTotalBasedOnUnitPrice.SalesOrderID
 order by tableWithSubTotalBasedOnUnitPrice.SalesOrderID
 
 --get subtotal based on list price:
 select tableWithProductSubTotalBasedOnListPrice.SalesOrderID, sum(tableWithProductSubTotalBasedOnListPrice.ProductSubTotalBasedOnListPrice) as SubTotalBasedOnListPrice
 from (
-select ssod.SalesOrderID, ssod.OrderQty, ssod.ProductID, ssod.UnitPrice, pp.ListPrice, (ssod.OrderQty * pp.ListPrice) as ProductSubTotalBasedOnListPrice
---select *
-from Sales.SalesOrderDetail ssod
-	join Production.Product pp
-	on ssod.ProductID = pp.ProductID
-) tableWithProductSubTotalBasedOnListPrice
+	select ssod.SalesOrderID, ssod.OrderQty, ssod.ProductID, ssod.UnitPrice, pp.ListPrice, (ssod.OrderQty * pp.ListPrice) as ProductSubTotalBasedOnListPrice
+	--select *
+	from Sales.SalesOrderDetail ssod
+		join Production.Product pp
+		on ssod.ProductID = pp.ProductID
+	) tableWithProductSubTotalBasedOnListPrice
 group by tableWithProductSubTotalBasedOnListPrice.SalesOrderID
 
 --join all the tables: FINAL ANSWER for #1 above:
