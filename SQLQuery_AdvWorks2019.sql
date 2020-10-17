@@ -17,7 +17,7 @@ where City = 'Dallas'
 select count(*) as countOfItems
 from Sales.SalesOrderDetail
 	join Production.Product
-	on Sales.SalesOrderDetail.ProductID = Production.Product.ProductID
+		on Sales.SalesOrderDetail.ProductID = Production.Product.ProductID
 where ListPrice > 1000
 --group by Production.Product.ProductID, Production.Product.Name, Production.Product.ListPrice
 --ANCA: and here is a count of all the individual units sold with that unit price condition - as in "counting each individual unit once - NOT just each product type once like I did above":
@@ -26,7 +26,7 @@ from (
 	select production.product.ProductID, sum(orderQty) as totalNumberOfUnitsSold
 	from Sales.SalesOrderDetail
 		join Production.Product
-		on Sales.SalesOrderDetail.ProductID = Production.Product.ProductID
+			on Sales.SalesOrderDetail.ProductID = Production.Product.ProductID
 	where ListPrice > 1000
 	group by production.product.ProductID
 	) x
@@ -35,7 +35,7 @@ from (
 select production.product.ProductID, Production.Product.Name, Production.Product.ListPrice, sum(sales.salesorderdetail.orderQty) as totalNumberOfUnitsSold
 from Sales.SalesOrderDetail
 	join Production.Product
-	on Sales.SalesOrderDetail.ProductID = Production.Product.ProductID
+		on Sales.SalesOrderDetail.ProductID = Production.Product.ProductID
 where ListPrice > 1000
 group by production.product.ProductID, production.product.name, production.product.ListPrice
 
@@ -46,9 +46,9 @@ group by production.product.ProductID, production.product.name, production.produ
 select Sales.Store.Name as CompanyName, Sales.Customer.CustomerID, SalesOrderID, sum(SubTotal + TaxAmt + Freight) as orderTotal
 from Sales.SalesOrderHeader
 	join Sales.Customer
-	on Sales.SalesOrderHeader.CustomerID = Sales.Customer.CustomerID
-		join Sales.Store
-		on Sales.Customer.StoreID = Sales.Store.BusinessEntityID
+		on Sales.SalesOrderHeader.CustomerID = Sales.Customer.CustomerID
+			join Sales.Store
+				on Sales.Customer.StoreID = Sales.Store.BusinessEntityID
 group by SalesOrderID, Sales.Customer.CustomerID, Sales.Store.Name
 having sum(SubTotal + TaxAmt + Freight)  > 100000
 
@@ -56,13 +56,13 @@ having sum(SubTotal + TaxAmt + Freight)  > 100000
 select Production.Product.Name as itemName, Sales.Store.Name as companyName, sum(Sales.SalesOrderDetail.OrderQty) as totalCountOfItemsSold
 from Sales.SalesOrderDetail
 	join Sales.SalesOrderHeader
-	on Sales.SalesOrderDetail.SalesOrderID = Sales.SalesOrderHeader.SalesOrderID
-		join Sales.Customer
-		on Sales.SalesOrderHeader.CustomerID = Sales.Customer.CustomerID
-			join Sales.Store
-			on Sales.Customer.StoreID = Sales.Store.BusinessEntityID
-				join Production.Product
-				on Sales.SalesOrderDetail.ProductID = Production.Product.ProductID
+		on Sales.SalesOrderDetail.SalesOrderID = Sales.SalesOrderHeader.SalesOrderID
+			join Sales.Customer
+				on Sales.SalesOrderHeader.CustomerID = Sales.Customer.CustomerID
+					join Sales.Store
+						on Sales.Customer.StoreID = Sales.Store.BusinessEntityID
+							join Production.Product
+								on Sales.SalesOrderDetail.ProductID = Production.Product.ProductID
 where Sales.Store.Name = 'Riding Cycles'
 AND Production.Product.Name = 'Racing Socks, L'
 group by Production.Product.Name, Sales.Store.Name
@@ -105,15 +105,15 @@ order by tableOfSalesOrdersWithOneItem.salesorderid
 select pp.Name as ProductName, ss.Name
 from Sales.SalesOrderDetail ssod
 	join Production.Product pp
-	on ssod.ProductID = pp.ProductID
-		join Production.ProductModel ppm
-		on pp.ProductModelID = ppm.ProductModelID
-			join Sales.SalesOrderHeader ssoh
-			on ssod.SalesOrderID = ssoh.SalesOrderID
-				join Sales.Customer sc
-				on ssoh.CustomerID = sc.CustomerID
-					join Sales.Store ss
-					on sc.StoreID = ss.BusinessEntityID
+		on ssod.ProductID = pp.ProductID
+			join Production.ProductModel ppm
+				on pp.ProductModelID = ppm.ProductModelID
+					join Sales.SalesOrderHeader ssoh
+						on ssod.SalesOrderID = ssoh.SalesOrderID
+							join Sales.Customer sc
+								on ssoh.CustomerID = sc.CustomerID
+									join Sales.Store ss
+										on sc.StoreID = ss.BusinessEntityID
 where ppm.Name = 'Racing Socks'
 group by sc.CustomerID, ss.Name, pp.Name
 
@@ -143,9 +143,9 @@ from Sales.SalesOrderDetail
 select ss.Name as CompanyName, ssoh.SalesOrderID, ssoh.CustomerID, ssoh.SubTotal
 from Sales.SalesOrderHeader ssoh
 	join Sales.Customer sc
-	on ssoh.CustomerID = sc.CustomerID
-		join sales.Store ss
-		on sc.StoreID = ss.BusinessEntityID
+		on ssoh.CustomerID = sc.CustomerID
+			join sales.Store ss
+				on sc.StoreID = ss.BusinessEntityID
 order by ssoh.SubTotal desc
 
 --get weight for each product in each order:
@@ -155,9 +155,9 @@ select ssoh.SalesOrderID, pp.name as ProductName, ssod.OrderQty, pp.Weight, (
 	end) as weightPerProductType
 from Sales.SalesOrderHeader ssoh
 	join Sales.SalesOrderDetail ssod
-	on ssoh.SalesOrderID = ssod.SalesOrderID
-		join Production.Product pp
-		on ssod.ProductID = pp.ProductID
+		on ssoh.SalesOrderID = ssod.SalesOrderID
+			join Production.Product pp
+				on ssod.ProductID = pp.ProductID
 group by ssoh.SalesOrderID, pp.name, ssod.OrderQty, pp.Weight,
 	(
 	case when pp.weight is not null then (ssod.OrderQty * pp.Weight)
@@ -174,9 +174,9 @@ from (
 		end) as weightPerProductType
 	from Sales.SalesOrderHeader ssoh
 		join Sales.SalesOrderDetail ssod
-		on ssoh.SalesOrderID = ssod.SalesOrderID
-			join Production.Product pp
-			on ssod.ProductID = pp.ProductID
+			on ssoh.SalesOrderID = ssod.SalesOrderID
+				join Production.Product pp
+					on ssod.ProductID = pp.ProductID
 	group by ssoh.SalesOrderID, pp.name, ssod.OrderQty, pp.Weight,
 		(
 		case when pp.weight is not null then (ssod.OrderQty * pp.Weight)
@@ -191,33 +191,33 @@ order by tableWithProductWeights.SalesOrderID
 select ss.Name as CompanyName, ssoh.SalesOrderID, ssoh.CustomerID, ssoh.SubTotal, tableWithOrderWeights.totalOrderWeight
 from Sales.SalesOrderHeader ssoh
 	join Sales.Customer sc
-	on ssoh.CustomerID = sc.CustomerID
-		join sales.Store ss
-		on sc.StoreID = ss.BusinessEntityID
-		join
-		(
-		select tableWithProductWeights.SalesOrderID, sum(tableWithProductWeights.weightPerProductType) as totalOrderWeight
-			from (
-				select ssoh.SalesOrderID, pp.name as ProductName, ssod.OrderQty, (
-				case when pp.weight is not null then (ssod.OrderQty * pp.Weight)
-				else 0
-				end) as weightPerProductType
-				from Sales.SalesOrderHeader ssoh
-					join Sales.SalesOrderDetail ssod
-					on ssoh.SalesOrderID = ssod.SalesOrderID
-						join Production.Product pp
-						on ssod.ProductID = pp.ProductID
+		on ssoh.CustomerID = sc.CustomerID
+			join sales.Store ss
+				on sc.StoreID = ss.BusinessEntityID
+					join
+					(
+					select tableWithProductWeights.SalesOrderID, sum(tableWithProductWeights.weightPerProductType) as totalOrderWeight
+					from (
+						select ssoh.SalesOrderID, pp.name as ProductName, ssod.OrderQty, (
+						case when pp.weight is not null then (ssod.OrderQty * pp.Weight)
+						else 0
+						end) as weightPerProductType
+						from Sales.SalesOrderHeader ssoh
+							join Sales.SalesOrderDetail ssod
+								on ssoh.SalesOrderID = ssod.SalesOrderID
+									join Production.Product pp
+										on ssod.ProductID = pp.ProductID
 						group by ssoh.SalesOrderID, pp.name, ssod.OrderQty,
 						(
 						case when pp.weight is not null then (ssod.OrderQty * pp.Weight)
 						else 0
 						end)
 --order by ssoh.SalesOrderID
-				) tableWithProductWeights
+						) tableWithProductWeights
 				group by tableWithProductWeights.SalesOrderID
 --order by tableWithProductWeights.SalesOrderID
-			) tableWithOrderWeights
-			on ssoh.SalesOrderID = tableWithOrderWeights.SalesOrderID
+				) tableWithOrderWeights
+					on ssoh.SalesOrderID = tableWithOrderWeights.SalesOrderID
 order by ssoh.SubTotal desc
 --order by ssoh.SalesOrderID
 
@@ -255,7 +255,7 @@ select ssod.SalesOrderID, ssoh.SubTotal as SubTotalFromHeader
 --select *
 from Sales.SalesOrderDetail ssod
 	join Sales.SalesOrderHeader ssoh
-	on ssod.SalesOrderID = ssoh.SalesOrderID
+		on ssod.SalesOrderID = ssoh.SalesOrderID
 group by ssod.SalesOrderID, ssoh.SubTotal
 order by ssod.SalesOrderID
 
@@ -266,7 +266,7 @@ from
 	select ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice) as SubTotalBasedOnUnitPrice
 	from Sales.SalesOrderDetail ssod
 		join Sales.SalesOrderHeader ssoh
-		on ssod.SalesOrderID = ssoh.SalesOrderID
+			on ssod.SalesOrderID = ssoh.SalesOrderID
 	group by ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice)
 	--order by ssod.SalesOrderID
 	) tableWithSubtotalBasedOnUnitPrice
@@ -280,7 +280,7 @@ from (
 	--select *
 	from Sales.SalesOrderDetail ssod
 		join Production.Product pp
-		on ssod.ProductID = pp.ProductID
+			on ssod.ProductID = pp.ProductID
 	) tableWithProductSubTotalBasedOnListPrice
 group by tableWithProductSubTotalBasedOnListPrice.SalesOrderID
 
@@ -301,7 +301,7 @@ from Sales.SalesOrderDetail ssod
 				select ssod.SalesOrderID, ssod.OrderQty, ssod.ProductID, ssod.UnitPrice, pp.ListPrice, (ssod.OrderQty * pp.ListPrice) as ProductSubTotalBasedOnListPrice
 				from Sales.SalesOrderDetail ssod
 					join Production.Product pp
-					on ssod.ProductID = pp.ProductID
+						on ssod.ProductID = pp.ProductID
 				) tableWithProductSubTotalBasedOnListPrice
 			group by tableWithProductSubTotalBasedOnListPrice.SalesOrderID
 			) tableWithOrderSubTotalBasedOnListPrice
@@ -349,7 +349,7 @@ from (
 					select ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice) as SubTotalBasedOnUnitPrice
 						from Sales.SalesOrderDetail ssod
 							join Sales.SalesOrderHeader ssoh
-							on ssod.SalesOrderID = ssoh.SalesOrderID
+								on ssod.SalesOrderID = ssoh.SalesOrderID
 						group by ssod.SalesOrderID, (ssod.OrderQty * ssod.UnitPrice)
 --order by ssod.SalesOrderID
 					) tableWithSubtotalBasedOnUnitPrice
